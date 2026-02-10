@@ -3,7 +3,7 @@
 client_id = "e4a3176436096a9c10a954178859caf9"
 name = "FutureTrust"
 handle = "future-trust"
-application_url = "https://example.com"
+application_url = "https://future-trust-app.vercel.app"
 embedded = true
 
 [access_scopes]
@@ -11,9 +11,9 @@ scopes = "write_products,read_orders,write_themes"
 
 [auth]
 redirect_urls = [
-  "https://example.com/auth/callback",
-  "https://example.com/auth/shopify/callback",
-  "https://example.com/api/auth/callback"
+  "https://future-trust-app.vercel.app/auth/callback",
+  "https://future-trust-app.vercel.app/auth/shopify/callback",
+  "https://future-trust-app.vercel.app/api/auth/callback"
 ]
 
 [webhooks]
