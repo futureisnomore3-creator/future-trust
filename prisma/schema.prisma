@@ -9,8 +9,8 @@ generator client {
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
@@ -31,4 +31,37 @@ model Session {
   emailVerified       Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
+}
+
+model Settings {
+  id          String    @id @default(uuid())
+  shop        String    @unique
+  
+  // Urgency Config
+  urgencyEnabled    Boolean @default(true)
+  urgencyThreshold  Int     @default(10)
+  urgencyText       String  @default("🔥 Only {{ quantity }} left in stock!")
+  urgencyTextColor  String  @default("#D72C0D")
+  urgencyBgColor    String  @default("#FFF4F2")
+
+  // Social Proof Config
+  socialEnabled     Boolean @default(true)
+  socialDelay       Int     @default(5)
+  socialDuration    Int     @default(5)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model RecentSale {
+  id           String   @id @default(uuid())
+  shop         String
+  productName  String
+  customerName String
+  city         String?
+  country      String?
+  occurredAt   DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([shop])
 }

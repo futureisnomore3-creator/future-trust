@@ -1,0 +1,196 @@
+{% assign app_settings = shop.metafields.future_trust.settings.value %}
+{% assign enabled = app_settings.socialEnabled %}
+
+{% comment %} Default to true if not set yet {% endcomment %}
+{% if enabled == nil %}
+  {% assign enabled = true %}
+{% endif %}
+
+{% if enabled %}
+  <div id="future-trust-sales-popup" class="future-trust-popup" style="display: none;">
+    <div class="future-trust-popup-content">
+      <div class="future-trust-image-wrapper">
+        {% if block.settings.product_image != blank %}
+          <img src="{{ block.settings.product_image | image_url: width: 60 }}" alt="Product" class="future-trust-product-img">
+        {% else %}
+          {% if product.featured_image %}
+             <img src="{{ product.featured_image | image_url: width: 60 }}" alt="{{ product.title }}" class="future-trust-product-img">
+          {% else %}
+             <div class="future-trust-placeholder">🛍️</div>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="future-trust-text">
+        <span class="future-trust-name" id="ft-buyer-name">Someone</span> in <span class="future-trust-location" id="ft-buyer-location">New York</span>
+        <br>
+        <span class="future-trust-action">purchased a</span> <strong id="ft-product-name">
+          {% if block.settings.custom_product_name != blank %}
+            {{ block.settings.custom_product_name }}
+          {% elsif product.title %}
+            {{ product.title | truncate: 20 }}
+          {% else %}
+            Mystery Box
+          {% endif %}
+        </strong>
+        <div class="future-trust-time"><small id="ft-time-ago">2 minutes ago</small></div>
+      </div>
+      <button class="future-trust-close" onclick="closeFuturePopup()">×</button>
+    </div>
+  </div>
+
+  <style>
+    .future-trust-popup {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 9999;
+      background: {{ block.settings.bg_color }};
+      color: {{ block.settings.text_color }};
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      width: 300px;
+      max-width: 90vw;
+      animation: slideInLeft 0.5s ease-out forwards;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .future-trust-popup-content {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      position: relative;
+    }
+
+    .future-trust-image-wrapper {
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .future-trust-product-img {
+      width: 50px;
+      height: 50px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+
+    .future-trust-placeholder {
+      width: 50px;
+      height: 50px;
+      background: #f0f0f0;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .future-trust-text {
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .future-trust-name, .future-trust-location {
+      font-weight: 600;
+    }
+
+    .future-trust-time {
+      color: {{ block.settings.text_color | color_modify: 'alpha', 0.7 }};
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .future-trust-close {
+      position: absolute;
+      top: 2px;
+      right: 5px;
+      background: none;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      color: {{ block.settings.text_color }};
+      opacity: 0.5;
+    }
+    
+    .future-trust-close:hover {
+      opacity: 1;
+    }
+
+    @keyframes slideInLeft {
+      from { transform: translateX(-100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes fadeOutDown {
+      from { transform: translateY(0); opacity: 1; }
+      to { transform: translateY(20px); opacity: 0; }
+    }
+  </style>
+
+  <script>
+    (function() {
+      const names = ["Sarah", "Mike", "Jessica", "David", "Emily", "James", "Ashley", "Robert"];
+      const locations = ["New York", "London", "Austin", "Toronto", "Sydney", "Berlin", "Los Angeles", "Paris"];
+      const timeAgos = ["Just now", "2 minutes ago", "5 minutes ago", "12 minutes ago", "1 hour ago"];
+      
+      const popup = document.getElementById('future-trust-sales-popup');
+      const nameEl = document.getElementById('ft-buyer-name');
+      const locEl = document.getElementById('ft-buyer-location');
+      const timeEl = document.getElementById('ft-time-ago');
+
+      // Settings from Metafields (or fallbacks)
+      const delay = {{ app_settings.socialDelay | default: block.settings.initial_delay }} * 1000;
+      const duration = {{ app_settings.socialDuration | default: block.settings.display_duration }} * 1000;
+      // Hardcoded interval for now in app settings, or reuse theme setting
+      const interval = {{ block.settings.interval_time }} * 1000;
+
+      function showPopup() {
+        // Randomize data
+        nameEl.textContent = names[Math.floor(Math.random() * names.length)];
+        locEl.textContent = locations[Math.floor(Math.random() * locations.length)];
+        timeEl.textContent = timeAgos[Math.floor(Math.random() * timeAgos.length)];
+
+        popup.style.display = 'block';
+        popup.style.animation = 'slideInLeft 0.5s ease-out forwards';
+
+        // Hide after duration
+        setTimeout(() => {
+          popup.style.animation = 'fadeOutDown 0.5s ease-in forwards';
+          setTimeout(() => { popup.style.display = 'none'; }, 500);
+        }, duration);
+      }
+
+      // Initial start
+      setTimeout(() => {
+        showPopup();
+        // Loop
+        setInterval(showPopup, interval + duration);
+      }, delay);
+
+      window.closeFuturePopup = function() {
+        popup.style.display = 'none';
+      };
+    })();
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Recent Sales Popup",
+  "target": "body",
+  "settings": [
+    { "type": "paragraph", "content": "⚠️ Main settings are managed in the FutureTrust Dashboard." },
+    { "type": "header", "content": "Appearance Fallbacks" },
+    { "type": "color", "id": "text_color", "label": "Text Color", "default": "#1a1a1a" },
+    { "type": "color", "id": "bg_color", "label": "Background Color", "default": "#ffffff" },
+    { "type": "image_picker", "id": "product_image", "label": "Custom Product Image (Optional)" },
+    { "type": "text", "id": "custom_product_name", "label": "Custom Product Name", "info": "Leave blank to use current product title" },
+    
+    { "type": "header", "content": "Fallback Timing" },
+    { "type": "range", "id": "initial_delay", "min": 1, "max": 60, "step": 1, "label": "Initial Delay", "default": 3 },
+    { "type": "range", "id": "display_duration", "min": 2, "max": 20, "step": 1, "label": "Display Duration", "default": 5 },
+    { "type": "range", "id": "interval_time", "min": 5, "max": 120, "step": 5, "label": "Time Between Popups", "default": 10 }
+  ]
+}
+{% endschema %}
