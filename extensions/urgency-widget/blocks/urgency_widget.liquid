@@ -4,54 +4,137 @@
 {% assign bg_color = app_settings.urgencyBgColor | default: block.settings.bg_color %}
 {% assign enabled = app_settings.urgencyEnabled %}
 
-{% comment %} Handle "Enabled" check manually since JSON booleans can be tricky in Liquid {% endcomment %}
 {% if enabled == nil %}
   {% assign enabled = true %} 
 {% endif %}
 
 {% if enabled %}
-  {% assign inventory = product.selected_or_first_available_variant.inventory_quantity %}
-
-  <div class="future-trust-urgency-container" style="margin: 15px 0;">
-    {% if inventory == 0 %}
-      <div class="future-trust-urgency oos" style="color: #666; background: #f4f4f4; padding: 12px; border-radius: 8px; font-weight: 600; text-align: center; border: 1px solid #ddd; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-        🚫 This item is currently out of stock.
-      </div>
-    {% elsif inventory > 0 and inventory <= threshold %}
-      {% assign urgency_text = app_settings.urgencyText | default: "🔥 Only {{ quantity }} left in stock - order soon!" %}
-      {% assign final_msg = urgency_text | replace: "{{ quantity }}", inventory %}
-      
-      <div class="future-trust-urgency" style="color: {{ text_color }}; background: {{ bg_color }}; padding: 12px; border-radius: 8px; font-weight: 700; text-align: center; border: 1px solid {{ text_color }}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-        {{ final_msg }}
-      </div>
-    {% endif %}
+  <div 
+    id="future-trust-urgency-{{ block.id }}" 
+    class="future-trust-urgency-wrapper"
+    style="display: none; margin: 10px 0;"
+    data-threshold="{{ threshold }}"
+    data-text="{{ app_settings.urgencyText | default: '🔥 Only [quantity] left in stock!' | escape }}"
+  >
+    <div class="future-trust-urgency-badge" style="
+      color: {{ text_color }}; 
+      background: {{ bg_color }};
+      border: 1px solid {{ text_color | color_modify: 'alpha', 0.2 }};
+    ">
+      <span class="future-trust-icon">🔥</span>
+      <span class="future-trust-message">Checking stock...</span>
+    </div>
   </div>
 
   <style>
-    .pulsing-fire {
-      display: inline-block;
-      animation: pulse 1.5s infinite;
+    .future-trust-urgency-badge {
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      line-height: 1.4;
+      width: 100%;
+      box-sizing: border-box;
+      transition: all 0.3s ease;
     }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.2); }
-      100% { transform: scale(1); }
+    .future-trust-icon {
+      font-size: 1.2em;
+      animation: futureTrustPulse 2s infinite;
+    }
+    @keyframes futureTrustPulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+      100% { transform: scale(1); opacity: 1; }
     }
   </style>
+
+  <script>
+    (function() {
+      // 1. Build Inventory Map (Server-Side Rendered logic passed to Client)
+      const inventoryMap = {
+        {% for variant in product.variants %}
+          "{{ variant.id }}": {{ variant.inventory_quantity | default: 0 }},
+        {% endfor %}
+      };
+
+      const wrapper = document.getElementById('future-trust-urgency-{{ block.id }}');
+      const messageEl = wrapper.querySelector('.future-trust-message');
+      const threshold = parseInt(wrapper.dataset.threshold);
+      const template = wrapper.dataset.text;
+
+      // 2. Logic to Update UI
+      function updateUrgency(variantId) {
+        if (!variantId || inventoryMap[variantId] === undefined) {
+          wrapper.style.display = 'none';
+          return;
+        }
+
+        const qty = inventoryMap[variantId];
+
+        // Logic: Show if low stock (>0 AND <= threshold)
+        if (qty > 0 && qty <= threshold) {
+          const msg = template.replace('[quantity]', qty);
+          messageEl.textContent = msg;
+          wrapper.style.display = 'block';
+        } else {
+          wrapper.style.display = 'none';
+        }
+      }
+
+      // 3. Listen for Variant Changes (Best in Industry approach)
+      // Method A: URL Params (Works on load & history changes)
+      function checkUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const variantId = params.get('variant') || "{{ product.selected_or_first_available_variant.id }}";
+        updateUrgency(variantId);
+      }
+
+      // Method B: Listen for standard 3rd party events or global "change" on form
+      // This is tricky as themes differ. URL polling + history listener is safest.
+      
+      // Init
+      checkUrl();
+
+      // Hook into pushState/replaceState to detect variant swaps that don't reload
+      const originalPushState = history.pushState;
+      history.pushState = function() {
+        originalPushState.apply(this, arguments);
+        setTimeout(checkUrl, 50);
+      };
+
+      const originalReplaceState = history.replaceState;
+      history.replaceState = function() {
+        originalReplaceState.apply(this, arguments);
+        setTimeout(checkUrl, 50);
+      };
+
+      // Fallback: Listen for any change on the product form, just in case
+      // standard themes update the URL, but some might not immediately
+      document.addEventListener('change', (e) => {
+        if (e.target.name === 'id' && e.target.closest('form[action*="/cart/add"]')) {
+           updateUrgency(e.target.value);
+        }
+      });
+
+    })();
+  </script>
 {% endif %}
 
 {% schema %}
 {
-  "name": "Urgency Widget",
+  "name": "Urgency Badge",
   "target": "section",
   "enabled_on": {
     "templates": ["product"]
   },
   "settings": [
-    { "type": "paragraph", "content": "⚠️ Settings are now managed in the FutureTrust App Dashboard." },
+    { "type": "paragraph", "content": "🎨 Manage styles in the App Dashboard" },
     { "type": "number", "id": "threshold", "label": "Fallback Threshold", "default": 10 },
-    { "type": "color", "id": "text_color", "label": "Fallback Text Color", "default": "#D72C0D" },
-    { "type": "color", "id": "bg_color", "label": "Fallback Background Color", "default": "#FFF4F2" }
+    { "type": "color", "id": "text_color", "label": "Fallback Text", "default": "#D72C0D" },
+    { "type": "color", "id": "bg_color", "label": "Fallback Background", "default": "#FFF4F2" }
   ]
 }
 {% endschema %}

@@ -5,9 +5,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -49,6 +46,13 @@ model Settings {
   socialDelay       Int     @default(5)
   socialDuration    Int     @default(5)
   
+  // New Display & Behavior Settings
+  crossSellEnabled  Boolean @default(true)
+  showVerified      Boolean @default(true)
+  desktopPosition   String  @default("bottom_left") // bottom_left, bottom_right, top_left, top_right
+  mobilePosition    String  @default("top")         // top, bottom
+  hideMobile        Boolean @default(false)
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -60,6 +64,12 @@ model RecentSale {
   customerName String
   city         String?
   country      String?
+  
+  // Targeted Popups
+  productId    String?
+  productHandle String?
+  productImage String?
+
   occurredAt   DateTime
   createdAt    DateTime @default(now())
 

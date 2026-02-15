@@ -7,7 +7,7 @@ application_url = "https://future-trust-app.vercel.app"
 embedded = true
 
 [access_scopes]
-scopes = "write_products,read_orders,write_themes"
+scopes = "write_products,read_orders,write_themes,read_locations"
 
 [auth]
 redirect_urls = [

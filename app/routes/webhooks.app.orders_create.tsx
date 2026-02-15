@@ -19,8 +19,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const city = order.shipping_address?.city || order.billing_address?.city || "Nearby";
   const country = order.shipping_address?.country_code || order.billing_address?.country_code;
   
-  // Get the first product
-  const productName = order.line_items?.[0]?.title || "Popular Item";
+  // Get product details from the first line item
+  const lineItem = order.line_items?.[0];
+  const productName = lineItem?.title || "Popular Item";
+  
+  // Clean up Product ID (remove gid:// if present, though webhooks usually send numbers)
+  // Ensure we store it in a consistent format for matching
+  const rawProductId = lineItem?.product_id;
+  const productId = rawProductId ? String(rawProductId).replace("gid://shopify/Product/", "") : null;
+  const productHandle = lineItem?.handle || null;
 
   // 1. Save to DB
   try {
@@ -31,37 +38,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         customerName,
         city,
         country,
+        productId,
+        productHandle,
+        // Webhooks don't always send the image URL in the line item summary, 
+        // we rely on the frontend to fetch it or use a placeholder if needed.
         occurredAt: new Date(order.created_at || new Date()),
         }
     });
+    console.log(`Saved sale for product: ${productName} (ID: ${productId})`);
   } catch (error) {
     console.error("Error saving sale to DB:", error);
   }
 
-  // 2. Trim old records (keep last 50)
-  // (Optional optimization)
-
-  // 3. Update Metafield for Extension
-  // Fetch fresh list
+  // 2. Update Metafield for Extension
   const recentSales = await db.recentSale.findMany({
     where: { shop },
     orderBy: { occurredAt: 'desc' },
-    take: 20
+    take: 50 // Increased limit to allow for filtering
   });
 
-  // Format for the extension
   const salesJson = recentSales.map(s => ({
     name: s.customerName,
     location: s.city || "Nearby",
     product: s.productName,
-    time: s.occurredAt.toISOString() // ISO string for JS parsing
+    productId: s.productId, // Key for filtering
+    handle: s.productHandle,
+    time: s.occurredAt.toISOString()
   }));
 
   if (admin) {
     try {
         const shopData = await admin.graphql(
             `#graphql
-            query {
+            query getShopId {
                 shop {
                 id
                 }
@@ -94,7 +103,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             },
             },
         );
-        console.log("Updated recent_sales metafield");
+        console.log("Updated recent_sales metafield with product details");
     } catch (error) {
         console.error("Failed to update metafields:", error);
     }
